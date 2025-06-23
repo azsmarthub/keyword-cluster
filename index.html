@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Keyword Cluster Processor | Professional SEO Research Tool</title>
+
+    <!-- Fonts & Encoding -->
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Meta -->
+    <meta name="description"
+        content="Professional keyword cluster processing tool with database storage and n8n integration">
+    <meta name="keywords" content="SEO, keyword research, cluster analysis, n8n automation">
+    <meta name="author" content="SEO Research Tools">
+
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="icon" type="image/svg+xml"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='24' font-size='24'>🔍</text></svg>">
+</head>
+
+<body>
+    <div class="app-container">
+        <header class="app-header">
+            <div class="header-content">
+                <h1>🔍 Keyword Cluster Processor</h1>
+                <p>Professional SEO Research Tool with Database Storage & Automation</p>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-outline" onclick="toggleSettings()">
+                    ⚙️ Settings
+                </button>
+                <button class="btn btn-outline" onclick="showProjects()">
+                    📁 Projects
+                </button>
+            </div>
+        </header>
+
+        <!-- Settings Panel (Hidden by default) -->
+        <section class="settings-panel" id="settingsPanel" style="display: none;">
+            <div class="panel-header">
+                <h3>🔧 Configuration Settings</h3>
+                <button class="btn-close" onclick="toggleSettings()">×</button>
+            </div>
+            <div class="panel-content">
+                <div class="form-group">
+                    <label for="webhookUrl">n8n Webhook URL</label>
+                    <input type="url" id="webhookUrl" class="form-control"
+                        value="https://n8n.azsmarthub.com/webhook/keyword-cluster"
+                        placeholder="https://your-n8n.com/webhook/endpoint">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="authUsername">Basic Auth Username</label>
+                        <input type="text" id="authUsername" class="form-control" value="azresearch"
+                            placeholder="Username">
+                    </div>
+                    <div class="form-group">
+                        <label for="authPassword">Basic Auth Password</label>
+                        <input type="password" id="authPassword" class="form-control" value="UFjSooyolve8zjF2mn7Q"
+                            placeholder="Password">
+                    </div>
+                </div>
+                <div class="panel-actions">
+                    <button class="btn btn-primary" onclick="testWebhook()">🔗 Test Connection</button>
+                    <button class="btn btn-secondary" onclick="saveSettings()">💾 Save Settings</button>
+                </div>
+                <div id="connectionStatus" class="status-display"></div>
+            </div>
+        </section>
+
+        <main class="main-content">
+            <!-- File Upload Section -->
+            <section class="upload-section">
+                <div class="section-header">
+                    <h2>📁 Upload & Process Keywords</h2>
+                    <div class="auto-extracted" id="autoExtracted" style="display: none;">
+                        <span class="label">Auto-detected:</span>
+                        <span class="value" id="extractedSeedKeyword"></span>
+                    </div>
+                </div>
+
+                <div class="upload-zone" id="uploadZone">
+                    <div class="upload-content">
+                        <div class="upload-icon">📊</div>
+                        <h3>Drop CSV file here or click to browse</h3>
+                        <p>Supports: *.csv files up to 50MB</p>
+                        <p class="file-pattern">Expected format: <code>seed-keyword_clusters_YYYY-MM-DD.csv</code></p>
+                    </div>
+                    <input type="file" id="csvFile" accept=".csv" style="display: none;">
+                </div>
+
+                <div class="file-info" id="fileInfo" style="display: none;"></div>
+
+                <div class="form-group" style="margin-top: 20px;">
+                    <label for="seedKeyword">Seed Keyword (Project Name)</label>
+                    <input type="text" id="seedKeyword" class="form-control" placeholder="e.g., sous-vide-machine"
+                        required>
+                    <small class="help-text">Auto-extracted from filename or enter manually</small>
+                </div>
+
+                <button class="btn btn-primary btn-large" id="processBtn" onclick="processFile()" disabled>
+                    <span class="btn-icon">🚀</span>
+                    <span class="btn-text">Process Keywords & Send to Database</span>
+                </button>
+
+                <div class="progress-container" id="progressContainer" style="display: none;">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-text" id="progressText">Processing...</div>
+                </div>
+
+                <div class="result-alert" id="resultAlert" style="display: none;"></div>
+            </section>
+
+            <!-- Data Preview Section -->
+            <section class="preview-section" id="previewSection" style="display: none;">
+                <div class="section-header">
+                    <h2>📋 Processed Data Preview</h2>
+                    <div class="preview-controls">
+                        <button class="btn btn-outline" onclick="togglePreviewMode()">
+                            <span id="previewToggleText">Show All Clusters</span>
+                        </button>
+                        <button class="btn btn-outline" onclick="exportToJSON()">
+                            📤 Export JSON
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Summary Stats -->
+                <div class="stats-grid" id="statsGrid">
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalClusters">0</div>
+                        <div class="stat-label">Total Clusters</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalKeywords">0</div>
+                        <div class="stat-label">Total Keywords</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalVolume">0</div>
+                        <div class="stat-label">Total Volume</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="avgDifficulty">0</div>
+                        <div class="stat-label">Avg Difficulty</div>
+                    </div>
+                </div>
+
+                <!-- Data Table -->
+                <div class="data-table-container">
+                    <table class="data-table" id="dataTable">
+                        <thead>
+                            <tr>
+                                <th>Cluster Name</th>
+                                <th>Keywords</th>
+                                <th>Volume</th>
+                                <th>Difficulty</th>
+                                <th>Topics</th>
+                                <th>Intent</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dataTableBody">
+                            <!-- Data will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                <div class="pagination-container" id="paginationContainer" style="display: none;">
+                    <button class="btn btn-outline" onclick="changePage(-1)">← Previous</button>
+                    <span class="page-info" id="pageInfo">Page 1 of 1</span>
+                    <button class="btn btn-outline" onclick="changePage(1)">Next →</button>
+                </div>
+            </section>
+
+            <!-- Projects History Section -->
+            <section class="projects-section" id="projectsSection" style="display: none;">
+                <div class="section-header">
+                    <h2>📚 Project History</h2>
+                    <button class="btn btn-outline" onclick="refreshProjects()">🔄 Refresh</button>
+                </div>
+                <div class="projects-grid" id="projectsGrid">
+                    <!-- Projects will be loaded here -->
+                </div>
+            </section>
+        </main>
+
+        <footer class="app-footer">
+            <p>&copy; 2025 SEO Research Tools | Professional Keyword Analysis Platform</p>
+        </footer>
+    </div>
+
+    <!-- Copy Modal -->
+    <div class="modal" id="copyModal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>📋 Copy Cluster Data</h3>
+                <button class="btn-close" onclick="closeCopyModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <textarea id="copyTextArea" readonly class="copy-textarea"></textarea>
+                <button class="btn btn-primary" onclick="copyToClipboard()">📋 Copy to Clipboard</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="assets/js/app.js"></script>
+</body>
+
+</html>
