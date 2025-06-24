@@ -1441,85 +1441,135 @@ Seed Keywords: ${cluster.seed_keywords}`;
     }
 }
 
+// ============================================
+// GLOBAL FUNCTIONS - ENSURE THESE EXIST
+// ============================================
+
+// Global variable to hold the instance
+let keywordProcessor;
+
 // Global functions for onclick handlers
 function toggleSettings() {
-    keywordProcessor.toggleSettings();
+    if (window.keywordProcessor) {
+        window.keywordProcessor.toggleSettings();
+    }
 }
 
 function testWebhook() {
-    keywordProcessor.testWebhook();
+    if (window.keywordProcessor) {
+        window.keywordProcessor.testWebhook();
+    }
 }
 
 function saveSettings() {
-    keywordProcessor.saveSettings();
+    if (window.keywordProcessor) {
+        window.keywordProcessor.saveSettings();
+    }
 }
 
 function processKeywords() {
-    keywordProcessor.processKeywords();
+    if (window.keywordProcessor) {
+        window.keywordProcessor.processKeywords();
+    } else {
+        console.error('keywordProcessor not initialized');
+        alert('Application not ready. Please refresh the page.');
+    }
 }
 
 function saveProject() {
-    keywordProcessor.saveProject();
+    if (window.keywordProcessor) {
+        window.keywordProcessor.saveProject();
+    }
 }
 
 function sendWebhook() {
-    keywordProcessor.sendWebhook();
+    if (window.keywordProcessor) {
+        window.keywordProcessor.sendWebhook();
+    }
 }
 
 function togglePreviewMode() {
-    keywordProcessor.togglePreviewMode();
+    if (window.keywordProcessor) {
+        window.keywordProcessor.togglePreviewMode();
+    }
 }
 
 function changePage(direction) {
-    keywordProcessor.changePage(direction);
+    if (window.keywordProcessor) {
+        window.keywordProcessor.changePage(direction);
+    }
 }
 
 function exportToJSON() {
-    keywordProcessor.exportToJSON();
+    if (window.keywordProcessor) {
+        window.keywordProcessor.exportToJSON();
+    }
 }
 
 function exportToCSV() {
-    keywordProcessor.exportToCSV();
+    if (window.keywordProcessor) {
+        window.keywordProcessor.exportToCSV();
+    }
 }
 
 function showProjects() {
-    keywordProcessor.showProjects();
+    if (window.keywordProcessor) {
+        window.keywordProcessor.showProjects();
+    }
 }
 
 function refreshProjects() {
-    keywordProcessor.refreshProjects();
+    if (window.keywordProcessor) {
+        window.keywordProcessor.refreshProjects();
+    }
 }
 
 function searchProjects() {
-    keywordProcessor.searchProjects();
+    if (window.keywordProcessor) {
+        window.keywordProcessor.searchProjects();
+    }
 }
 
 function changeProjectPage(direction) {
-    keywordProcessor.changeProjectPage(direction);
+    if (window.keywordProcessor) {
+        window.keywordProcessor.changeProjectPage(direction);
+    }
 }
 
 function closeDetailModal() {
-    keywordProcessor.closeDetailModal();
+    if (window.keywordProcessor) {
+        window.keywordProcessor.closeDetailModal();
+    }
 }
 
 function saveClusterChanges() {
-    keywordProcessor.saveClusterChanges();
+    if (window.keywordProcessor) {
+        window.keywordProcessor.saveClusterChanges();
+    }
 }
 
 function deleteCluster() {
-    keywordProcessor.deleteCluster();
+    if (window.keywordProcessor) {
+        window.keywordProcessor.deleteCluster();
+    }
 }
 
 function copyClusterToClipboard() {
-    keywordProcessor.copyClusterToClipboard();
+    if (window.keywordProcessor) {
+        window.keywordProcessor.copyClusterToClipboard();
+    }
 }
 
 function closeCopyModal() {
-    keywordProcessor.closeCopyModal();
+    if (window.keywordProcessor) {
+        window.keywordProcessor.closeCopyModal();
+    }
 }
 
 function copyToClipboard() {
-    keywordProcessor.copyToClipboard();
+    if (window.keywordProcessor) {
+        window.keywordProcessor.copyToClipboard();
+    }
 }
 
 function closeProjectDetailModal() {
@@ -1540,7 +1590,11 @@ function deleteProject() {
 
 // Initialize application when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    window.keywordProcessor = new KeywordProcessor();
+    // Add delay to ensure Papa Parse is loaded
+    setTimeout(() => {
+        window.keywordProcessor = new KeywordProcessor();
+        console.log('Keyword Processor initialized and available globally');
+    }, 100);
 });
 
 // Handle window resize for responsive behavior
@@ -1549,3 +1603,24 @@ window.addEventListener('resize', () => {
         window.keywordProcessor.renderDataTable();
     }
 });
+
+// Debug function for troubleshooting
+function debugKeywordProcessor() {
+    console.log('=== KEYWORD PROCESSOR DEBUG ===');
+    console.log('1. keywordProcessor object:', window.keywordProcessor);
+    console.log('2. processKeywords function:', typeof processKeywords);
+    console.log('3. saveProject function:', typeof saveProject);
+    console.log('4. sendWebhook function:', typeof sendWebhook);
+    
+    // Check buttons
+    const buttons = ['processBtn', 'saveBtn', 'webhookBtn'];
+    buttons.forEach(id => {
+        const btn = document.getElementById(id);
+        console.log(`5. ${id}:`, btn ? 'EXISTS' : 'MISSING', btn?.disabled ? 'DISABLED' : 'ENABLED');
+    });
+    
+    console.log('=== END DEBUG ===');
+}
+
+// Make debug function available globally
+window.debugKeywordProcessor = debugKeywordProcessor;

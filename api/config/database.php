@@ -1,12 +1,12 @@
 <?php
 /**
- * Database Configuration
+ * Database Configuration - Auto Generated
  */
 class DatabaseConfig {
     private const HOST = 'localhost';
-    private const DB_NAME = 'keyword_processor';
-    private const USERNAME = 'kw_processor';  // Thay bằng username của bạn
-    private const PASSWORD = 'your_secure_password_123';  // Thay bằng password của bạn
+    private const DB_NAME = 'kwazsmarthub_kw';
+    private const USERNAME = 'kwazsmarthub_kw';
+    private const PASSWORD = 'kESPi(2tWU(b';
     private const CHARSET = 'utf8mb4';
     
     public static function getConnection() {
