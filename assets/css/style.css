@@ -144,19 +144,19 @@ body {
 }
 
 .btn-outline {
-    background: transparent;
+    background: #2563eb;
     color: white;
     border: 2px solid rgba(255, 255, 255, 0.3);
 }
 
 .btn-outline:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: #276bfffc;
     border-color: rgba(255, 255, 255, 0.5);
 }
 
 .btn-large {
     width: 100%;
-    padding: 18px 24px;
+    padding: 12px 24px;
     font-size: 1.1rem;
     margin-top: 20px;
 }

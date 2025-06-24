@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick Test - Keyword Processor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-btn {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .test-btn:hover {
+            background: #1d4ed8;
+        }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        #results {
+            background: #f8fafc;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 5px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Keyword Processor - Quick Test</h1>
+    
+    <div class="test-section">
+        <h2>1. JavaScript Test</h2>
+        <button class="test-btn" onclick="testJS()">Test JavaScript Functions</button>
+        <div id="jsResults"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>2. API Test</h2>
+        <button class="test-btn" onclick="testAPI()">Test PHP Endpoints</button>
+        <div id="apiResults"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>3. Function Test</h2>
+        <button class="test-btn" onclick="testFunctions()">Test All Functions</button>
+        <div id="funcResults"></div>
+    </div>
+    
+    <div id="results"></div>
+    
+    <script>
+        function log(msg, type = 'info') {
+            const results = document.getElementById('results');
+            const timestamp = new Date().toLocaleTimeString();
+            results.innerHTML += `<div class="${type}">[${timestamp}] ${msg}</div>`;
+        }
+        
+        function testJS() {
+            log('Testing JavaScript...', 'info');
+            
+            // Check if Papa Parse is loaded
+            if (typeof Papa !== 'undefined') {
+                log('✅ Papa Parse loaded', 'success');
+            } else {
+                log('❌ Papa Parse NOT loaded', 'error');
+            }
+            
+            // Check if app.js is loaded
+            if (typeof KeywordProcessor !== 'undefined') {
+                log('✅ KeywordProcessor class found', 'success');
+            } else {
+                log('❌ KeywordProcessor class NOT found', 'error');
+            }
+            
+            // Check if keywordProcessor instance exists
+            if (window.keywordProcessor) {
+                log('✅ keywordProcessor instance exists', 'success');
+            } else {
+                log('❌ keywordProcessor instance NOT found', 'error');
+            }
+            
+            // Check specific methods
+            const methods = ['processKeywords', 'saveProject', 'sendWebhook', 'loadProjectData', 'exportProjectData', 'showProjectDetail'];
+            methods.forEach(method => {
+                if (window[method]) {
+                    log(`✅ Global function ${method}() exists`, 'success');
+                } else {
+                    log(`❌ Global function ${method}() NOT found`, 'error');
+                }
+            });
+        }
+        
+        async function testAPI() {
+            log('Testing PHP Endpoints...', 'info');
+            
+            const endpoints = [
+                'api/endpoints/get-projects.php',
+                'api/endpoints/save-project.php',
+                'api/endpoints/get-project.php?id=1',
+                'api/endpoints/export-project.php?id=1&format=json'
+            ];
+            
+            for (const endpoint of endpoints) {
+                try {
+                    const response = await fetch(endpoint);
+                    if (response.ok) {
+                        log(`✅ ${endpoint} - Status: ${response.status}`, 'success');
+                    } else {
+                        log(`⚠️ ${endpoint} - Status: ${response.status}`, 'error');
+                    }
+                } catch (error) {
+                    log(`❌ ${endpoint} - Error: ${error.message}`, 'error');
+                }
+            }
+        }
+        
+        function testFunctions() {
+            log('Testing Functions...', 'info');
+            
+            // Test if we can create instance
+            try {
+                const testInstance = new KeywordProcessor();
+                log('✅ Can create KeywordProcessor instance', 'success');
+                
+                // Test methods exist
+                const instanceMethods = ['processKeywords', 'saveProject', 'sendWebhook', 'loadProjectData', 'exportProjectData', 'showProjectDetail'];
+                instanceMethods.forEach(method => {
+                    if (typeof testInstance[method] === 'function') {
+                        log(`✅ Instance method ${method}() exists`, 'success');
+                    } else {
+                        log(`❌ Instance method ${method}() NOT found`, 'error');
+                    }
+                });
+            } catch (error) {
+                log(`❌ Cannot create instance: ${error.message}`, 'error');
+            }
+        }
+        
+        // Auto-run basic test on load
+        window.addEventListener('load', () => {
+            log('Page loaded. Running basic checks...', 'info');
+            
+            // Load Papa Parse first
+            const papaScript = document.createElement('script');
+            papaScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js';
+            papaScript.onload = () => {
+                log('✅ Papa Parse loaded', 'success');
+                
+                // Then load main app script
+                const appScript = document.createElement('script');
+                appScript.src = 'assets/js/app.js';
+                appScript.onload = () => {
+                    log('✅ app.js loaded successfully', 'success');
+                    setTimeout(testJS, 500);
+                };
+                appScript.onerror = () => {
+                    log('❌ Failed to load app.js', 'error');
+                };
+                document.head.appendChild(appScript);
+            };
+            papaScript.onerror = () => {
+                log('❌ Failed to load Papa Parse', 'error');
+            };
+            document.head.appendChild(papaScript);
+        });
+    </script>
+</body>
+</html>

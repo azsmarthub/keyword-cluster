@@ -1,0 +1,55 @@
+# Keyword Processor .htaccess Configuration
+# File: .htaccess
+# Path: /keyword-processor/.htaccess
+# Function: Configure Apache settings for proper operation
+
+# Enable mod_rewrite
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+</IfModule>
+
+# Disable caching for development
+<IfModule mod_headers.c>
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires 0
+    
+    # CORS headers for API
+    Header set Access-Control-Allow-Origin "*"
+    Header set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+    Header set Access-Control-Allow-Headers "Content-Type, Authorization"
+</IfModule>
+
+# PHP settings (if allowed)
+<IfModule mod_php7.c>
+    php_value upload_max_filesize 50M
+    php_value post_max_size 50M
+    php_value max_execution_time 300
+    php_value max_input_time 300
+    php_value memory_limit 256M
+</IfModule>
+
+# Protect sensitive files
+<FilesMatch "\.(log|sql|md|sh|env)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Protect directories
+<Files ~ "^\.">
+    Order allow,deny
+    Deny from all
+</Files>
+
+# Disable directory browsing
+Options -Indexes
+
+# Error handling
+ErrorDocument 404 /keyword-processor/index.html
+
+# Ensure proper content types
+<IfModule mod_mime.c>
+    AddType application/json .json
+    AddType text/csv .csv
+    AddCharset utf-8 .html .css .js .json .csv
+</IfModule>
