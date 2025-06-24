@@ -103,10 +103,23 @@
                     <small class="help-text">Auto-extracted from filename or enter manually</small>
                 </div>
 
-                <button class="btn btn-primary btn-large" id="processBtn" onclick="processFile()" disabled>
-                    <span class="btn-icon">🚀</span>
-                    <span class="btn-text">Process Keywords & Send to Database</span>
-                </button>
+                <!-- Separated Action Buttons -->
+                <div class="action-buttons">
+                    <button class="btn btn-primary" id="processBtn" onclick="processKeywords()" disabled>
+                        <span class="btn-icon">🚀</span>
+                        <span class="btn-text">Process Keywords</span>
+                    </button>
+
+                    <button class="btn btn-success" id="saveBtn" onclick="saveProject()" disabled>
+                        <span class="btn-icon">💾</span>
+                        <span class="btn-text">Save to Database</span>
+                    </button>
+
+                    <button class="btn btn-warning" id="webhookBtn" onclick="sendWebhook()" disabled>
+                        <span class="btn-icon">🔗</span>
+                        <span class="btn-text">Send Webhook</span>
+                    </button>
+                </div>
 
                 <div class="progress-container" id="progressContainer" style="display: none;">
                     <div class="progress-bar">
@@ -127,7 +140,10 @@
                             <span id="previewToggleText">Show All Clusters</span>
                         </button>
                         <button class="btn btn-outline" onclick="exportToJSON()">
-                            📤 Export JSON
+                            📤 Export to JSON
+                        </button>
+                        <button class="btn btn-outline" onclick="exportToCSV()">
+                            📊 Export to CSV
                         </button>
                     </div>
                 </div>
@@ -149,6 +165,14 @@
                     <div class="stat-card">
                         <div class="stat-number" id="avgDifficulty">0</div>
                         <div class="stat-label">Avg Difficulty</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="pillarPages">0</div>
+                        <div class="stat-label">Pillar Pages</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="subPages">0</div>
+                        <div class="stat-label">Sub Pages</div>
                     </div>
                 </div>
 
@@ -184,10 +208,19 @@
             <section class="projects-section" id="projectsSection" style="display: none;">
                 <div class="section-header">
                     <h2>📚 Project History</h2>
-                    <button class="btn btn-outline" onclick="refreshProjects()">🔄 Refresh</button>
+                    <div class="preview-controls">
+                        <button class="btn btn-outline" onclick="refreshProjects()">🔄 Refresh</button>
+                        <input type="text" id="projectSearch" class="form-control" placeholder="Search projects..."
+                            onkeyup="searchProjects()" style="width: 250px;">
+                    </div>
                 </div>
                 <div class="projects-grid" id="projectsGrid">
                     <!-- Projects will be loaded here -->
+                </div>
+                <div class="pagination-container" id="projectsPagination" style="display: none;">
+                    <button class="btn btn-outline" onclick="changeProjectPage(-1)">← Previous</button>
+                    <span class="page-info" id="projectPageInfo">Page 1 of 1</span>
+                    <button class="btn btn-outline" onclick="changeProjectPage(1)">Next →</button>
                 </div>
             </section>
         </main>
@@ -195,6 +228,68 @@
         <footer class="app-footer">
             <p>&copy; 2025 SEO Research Tools | Professional Keyword Analysis Platform</p>
         </footer>
+    </div>
+
+    <!-- Detail Modal -->
+    <div class="modal" id="detailModal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>📋 Cluster Details</h3>
+                <button class="btn-close" onclick="closeDetailModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="detail-grid">
+                    <div class="detail-field">
+                        <label>Cluster Name:</label>
+                        <input type="text" id="editClusterName" class="form-control value" />
+                    </div>
+                    <div class="detail-field">
+                        <label>Keyword Count:</label>
+                        <input type="number" id="editKeywordCount" class="form-control value" />
+                    </div>
+                    <div class="detail-field">
+                        <label>Total Volume:</label>
+                        <input type="number" id="editTotalVolume" class="form-control value" />
+                    </div>
+                    <div class="detail-field">
+                        <label>Average Difficulty:</label>
+                        <input type="number" step="0.1" id="editAvgDifficulty" class="form-control value" />
+                    </div>
+                    <div class="detail-field">
+                        <label>Difficulty Range:</label>
+                        <input type="text" id="editDifficultyRange" class="form-control value" />
+                    </div>
+                    <div class="detail-field">
+                        <label>Average CPC:</label>
+                        <input type="number" step="0.01" id="editAvgCPC" class="form-control value" />
+                    </div>
+                    <div class="detail-field full-width">
+                        <label>Supporting Keywords:</label>
+                        <textarea id="editSupportingKeywords" class="form-control value" rows="3"></textarea>
+                    </div>
+                    <div class="detail-field full-width">
+                        <label>Topics:</label>
+                        <textarea id="editTopics" class="form-control value" rows="2"></textarea>
+                    </div>
+                    <div class="detail-field full-width">
+                        <label>Intent:</label>
+                        <textarea id="editIntent" class="form-control value" rows="2"></textarea>
+                    </div>
+                    <div class="detail-field full-width">
+                        <label>Seed Keywords:</label>
+                        <textarea id="editSeedKeywords" class="form-control value" rows="2"></textarea>
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button class="btn btn-outline" onclick="copyClusterToClipboard()">📋 Copy Data</button>
+                    <button class="btn btn-secondary" onclick="saveClusterChanges()">💾 Save Changes</button>
+                    <button class="btn btn-outline" style="color: #dc2626;" onclick="deleteCluster()">🗑️
+                        Delete</button>
+                    <button class="btn btn-outline" onclick="closeDetailModal()">✕ Close</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Copy Modal -->
@@ -206,7 +301,32 @@
             </div>
             <div class="modal-body">
                 <textarea id="copyTextArea" readonly class="copy-textarea"></textarea>
-                <button class="btn btn-primary" onclick="copyToClipboard()">📋 Copy to Clipboard</button>
+                <div class="modal-actions">
+                    <button class="btn btn-primary" onclick="copyToClipboard()">📋 Copy to Clipboard</button>
+                    <button class="btn btn-outline" onclick="closeCopyModal()">✕ Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Project Detail Modal -->
+    <div class="modal" id="projectDetailModal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>📁 Project Details</h3>
+                <button class="btn-close" onclick="closeProjectDetailModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div id="projectDetailContent">
+                    <!-- Project details will be loaded here -->
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-primary" onclick="loadProjectData()">📊 Load Data</button>
+                    <button class="btn btn-outline" onclick="exportProjectData()">📤 Export</button>
+                    <button class="btn btn-outline" style="color: #dc2626;" onclick="deleteProject()">🗑️ Delete
+                        Project</button>
+                    <button class="btn btn-outline" onclick="closeProjectDetailModal()">✕ Close</button>
+                </div>
             </div>
         </div>
     </div>

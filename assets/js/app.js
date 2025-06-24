@@ -1,8 +1,8 @@
 /**
- * Professional Keyword Processor - Main Application Script
+ * Professional Keyword Processor - Enhanced Main Application Script
  * Author: SEO Research Tools
- * Version: 1.0
- * Description: Handles CSV processing, webhook communication, and data management
+ * Version: 1.1 - Enhanced UX & Separated Functions
+ * Description: Handles CSV processing, database storage, webhook communication, and project management
  */
 
 class KeywordProcessor {
@@ -12,6 +12,12 @@ class KeywordProcessor {
         this.currentPage = 1;
         this.itemsPerPage = 20;
         this.showAllClusters = false;
+        this.editingClusterIndex = -1;
+        
+        // Project management
+        this.currentProjectPage = 1;
+        this.projectsPerPage = 12;
+        this.currentProjectSearch = '';
         
         this.init();
     }
@@ -23,7 +29,7 @@ class KeywordProcessor {
         this.bindEvents();
         this.loadSettings();
         this.setupFileUpload();
-        console.log('🔍 Keyword Processor initialized successfully');
+        console.log('🔍 Keyword Processor v1.1 initialized successfully');
     }
 
     /**
@@ -194,6 +200,7 @@ class KeywordProcessor {
      */
     clearFile() {
         this.selectedFile = null;
+        this.processedData = null;
         const csvFile = document.getElementById('csvFile');
         const fileInfo = document.getElementById('fileInfo');
         const autoExtracted = document.getElementById('autoExtracted');
@@ -204,10 +211,11 @@ class KeywordProcessor {
         
         this.validateForm();
         this.hideResults();
+        this.updateButtonStates();
     }
 
     /**
-     * Validate form inputs
+     * Validate form inputs and update button states
      */
     validateForm() {
         const processBtn = document.getElementById('processBtn');
@@ -216,12 +224,27 @@ class KeywordProcessor {
         if (processBtn) {
             processBtn.disabled = !this.selectedFile || !seedKeyword;
         }
+        
+        this.updateButtonStates();
     }
 
     /**
-     * Process the uploaded file
+     * Update button states based on current state
      */
-    async processFile() {
+    updateButtonStates() {
+        const saveBtn = document.getElementById('saveBtn');
+        const webhookBtn = document.getElementById('webhookBtn');
+        
+        const hasProcessedData = this.processedData !== null;
+        
+        if (saveBtn) saveBtn.disabled = !hasProcessedData;
+        if (webhookBtn) webhookBtn.disabled = !hasProcessedData;
+    }
+
+    /**
+     * STEP 1: Process keywords only
+     */
+    async processKeywords() {
         if (!this.selectedFile) {
             this.showAlert('Please select a CSV file!', 'error');
             return;
@@ -233,48 +256,93 @@ class KeywordProcessor {
             return;
         }
 
-        this.setProcessingState(true);
+        this.setProcessingState('process', true);
         const startTime = Date.now();
 
         try {
             // Step 1: Parse CSV
-            this.updateProgress(20, 'Reading CSV file...');
+            this.updateProgress(25, 'Reading CSV file...');
             const csvData = await this.parseCSVFile(this.selectedFile);
 
             // Step 2: Process clusters
-            this.updateProgress(50, 'Analyzing keywords and creating clusters...');
+            this.updateProgress(75, 'Analyzing keywords and creating clusters...');
             const clusters = this.processKeywordClusters(csvData);
 
             // Step 3: Create payload
-            this.updateProgress(70, 'Preparing data payload...');
+            this.updateProgress(100, 'Creating data structure...');
             const payload = this.createWebhookPayload(clusters, seedKeyword, Date.now() - startTime);
 
-            // Step 4: Save to database (PHP endpoint)
-            this.updateProgress(85, 'Saving to database...');
-            await this.saveToDatabase(payload);
-
-            // Step 5: Send webhook (optional - continue even if fails)
-            this.updateProgress(95, 'Sending webhook notification...');
-            try {
-                await this.sendWebhook(payload);
-            } catch (webhookError) {
-                console.warn('Webhook failed but continuing:', webhookError);
-                this.showAlert('Data processed successfully! Note: Webhook notification failed.', 'warning');
-            }
-
-            // Step 6: Complete
-            this.updateProgress(100, 'Processing complete!');
+            this.processedData = payload;
             
             setTimeout(() => {
-                this.setProcessingState(false);
-                this.showSuccessResult(payload);
+                this.setProcessingState('process', false);
+                this.showAlert('✅ Keywords processed successfully! Ready to save to database.', 'success');
                 this.displayDataPreview(payload);
+                this.updateButtonStates();
             }, 500);
 
         } catch (error) {
             console.error('Processing error:', error);
-            this.setProcessingState(false);
+            this.setProcessingState('process', false);
             this.showAlert(`Processing failed: ${error.message}`, 'error');
+        }
+    }
+
+    /**
+     * STEP 2: Save to database
+     */
+    async saveProject() {
+        if (!this.processedData) {
+            this.showAlert('Please process keywords first!', 'warning');
+            return;
+        }
+
+        this.setProcessingState('save', true);
+
+        try {
+            this.updateProgress(50, 'Saving to database...');
+            await this.saveToDatabase(this.processedData);
+            
+            this.updateProgress(100, 'Saved successfully!');
+            
+            setTimeout(() => {
+                this.setProcessingState('save', false);
+                this.showAlert('✅ Project saved to database successfully!', 'success');
+            }, 500);
+
+        } catch (error) {
+            console.error('Save error:', error);
+            this.setProcessingState('save', false);
+            this.showAlert(`Save failed: ${error.message}`, 'error');
+        }
+    }
+
+    /**
+     * STEP 3: Send webhook
+     */
+    async sendWebhook() {
+        if (!this.processedData) {
+            this.showAlert('Please process keywords first!', 'warning');
+            return;
+        }
+
+        this.setProcessingState('webhook', true);
+
+        try {
+            this.updateProgress(50, 'Sending webhook...');
+            await this.sendWebhookData(this.processedData);
+            
+            this.updateProgress(100, 'Webhook sent!');
+            
+            setTimeout(() => {
+                this.setProcessingState('webhook', false);
+                this.showAlert('✅ Webhook sent successfully!', 'success');
+            }, 500);
+
+        } catch (error) {
+            console.error('Webhook error:', error);
+            this.setProcessingState('webhook', false);
+            this.showAlert(`Webhook failed: ${error.message}`, 'error');
         }
     }
 
@@ -384,7 +452,8 @@ class KeywordProcessor {
             const seedKeywords = this.extractUniqueValues(keywords, ['Seed keyword', 'Seed Keyword', 'seed_keyword']);
             
             clusters.push({
-                cluster_name: `${mainKeyword} (${pageType})`,
+                cluster_name: mainKeyword, // Clean name without page type
+                page_type: pageType,
                 keyword_count: keywords.length,
                 supporting_keywords: supportingKeywords,
                 total_volume: totalVolume,
@@ -445,8 +514,10 @@ class KeywordProcessor {
             : 0;
         
         const pillarPages = clusters.filter(c => 
-            c.cluster_name.toLowerCase().includes('pillar') || 
-            c.cluster_name.toLowerCase().includes('main')
+            c.page_type && (
+                c.page_type.toLowerCase().includes('pillar') || 
+                c.page_type.toLowerCase().includes('main')
+            )
         ).length;
         
         const subPages = clusters.length - pillarPages;
@@ -473,23 +544,34 @@ class KeywordProcessor {
      * Save data to database via PHP endpoint
      */
     async saveToDatabase(payload) {
-        // This would be implemented when PHP backend is ready
-        console.log('Database save would happen here:', payload);
-        
-        // Simulated for now - in real implementation:
-        // const response = await fetch('api/save-project.php', {
-        //     method: 'POST',
-        //     headers: { 'Content-Type': 'application/json' },
-        //     body: JSON.stringify(payload)
-        // });
-        
-        return Promise.resolve({ success: true });
+        try {
+            const response = await fetch('api/endpoints/save-project.php', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP ${response.status}`);
+            }
+            
+            const result = await response.json();
+            console.log('Database save successful:', result);
+            return result;
+            
+        } catch (error) {
+            console.error('Database save failed:', error);
+            throw new Error(`Database save failed: ${error.message}`);
+        }
     }
 
     /**
      * Send webhook with Basic Auth
      */
-    async sendWebhook(payload) {
+    async sendWebhookData(payload) {
         const webhookUrl = document.getElementById('webhookUrl')?.value.trim();
         const username = document.getElementById('authUsername')?.value.trim();
         const password = document.getElementById('authPassword')?.value.trim();
@@ -525,7 +607,6 @@ class KeywordProcessor {
      * Test webhook connection
      */
     async testWebhook() {
-        const statusDisplay = document.getElementById('connectionStatus');
         const webhookUrl = document.getElementById('webhookUrl')?.value.trim();
 
         if (!webhookUrl) {
@@ -542,7 +623,7 @@ class KeywordProcessor {
                 message: 'Testing connection from Keyword Processor'
             };
 
-            await this.sendWebhook(testPayload);
+            await this.sendWebhookData(testPayload);
             this.showStatusDisplay('✅ Connection successful!', 'success');
         } catch (error) {
             this.showStatusDisplay(`❌ Connection failed: ${error.message}`, 'error');
@@ -564,19 +645,47 @@ class KeywordProcessor {
     /**
      * Set processing state UI
      */
-    setProcessingState(processing) {
-        const processBtn = document.getElementById('processBtn');
-        const btnText = processBtn?.querySelector('.btn-text');
+    setProcessingState(action, processing) {
+        const buttons = {
+            'process': document.getElementById('processBtn'),
+            'save': document.getElementById('saveBtn'),
+            'webhook': document.getElementById('webhookBtn')
+        };
+        
         const progressContainer = document.getElementById('progressContainer');
-
+        
         if (processing) {
-            if (processBtn) processBtn.disabled = true;
-            if (btnText) btnText.innerHTML = '<div class="loading"></div> Processing...';
+            // Disable all buttons during processing
+            Object.values(buttons).forEach(btn => {
+                if (btn) btn.disabled = true;
+            });
+            
+            const currentBtn = buttons[action];
+            if (currentBtn) {
+                const btnText = currentBtn.querySelector('.btn-text');
+                if (btnText) {
+                    btnText.innerHTML = '<div class="loading"></div> Processing...';
+                }
+            }
+            
             if (progressContainer) progressContainer.style.display = 'block';
         } else {
-            if (processBtn) processBtn.disabled = false;
-            if (btnText) btnText.textContent = 'Process Keywords & Send to Database';
+            // Reset all buttons
+            const btnTexts = {
+                'process': 'Process Keywords',
+                'save': 'Save to Database', 
+                'webhook': 'Send Webhook'
+            };
+            
+            Object.entries(buttons).forEach(([key, btn]) => {
+                if (btn) {
+                    const btnText = btn.querySelector('.btn-text');
+                    if (btnText) btnText.textContent = btnTexts[key];
+                }
+            });
+            
             if (progressContainer) progressContainer.style.display = 'none';
+            this.updateButtonStates();
         }
     }
 
@@ -589,25 +698,6 @@ class KeywordProcessor {
 
         if (progressFill) progressFill.style.width = `${percent}%`;
         if (progressText) progressText.textContent = message;
-    }
-
-    /**
-     * Show success result
-     */
-    showSuccessResult(payload) {
-        const metadata = payload.metadata;
-        
-        const message = `
-            ✅ <strong>Processing completed successfully!</strong><br><br>
-            📊 <strong>Results:</strong><br>
-            • ${metadata.total_clusters} clusters created<br>
-            • ${metadata.total_keywords.toLocaleString()} total keywords<br>
-            • ${metadata.total_volume.toLocaleString()} total search volume<br>
-            • Processing time: ${metadata.processing_time_ms}ms<br><br>
-            🔗 <strong>Data saved to database and webhook sent!</strong>
-        `;
-        
-        this.showAlert(message, 'success');
     }
 
     /**
@@ -639,7 +729,9 @@ class KeywordProcessor {
             totalClusters: metadata.total_clusters,
             totalKeywords: metadata.total_keywords,
             totalVolume: metadata.total_volume,
-            avgDifficulty: metadata.avg_difficulty
+            avgDifficulty: metadata.avg_difficulty,
+            pillarPages: metadata.pillar_pages,
+            subPages: metadata.sub_pages
         };
 
         Object.entries(elements).forEach(([id, value]) => {
@@ -651,7 +743,7 @@ class KeywordProcessor {
     }
 
     /**
-     * Render data table with pagination
+     * Render data table with pagination and enhanced styling
      */
     renderDataTable() {
         if (!this.processedData) return;
@@ -673,16 +765,37 @@ class KeywordProcessor {
         // Render rows
         displayClusters.forEach((cluster, index) => {
             const row = document.createElement('tr');
+            
+            // Add row class based on page type
+            if (cluster.page_type) {
+                if (cluster.page_type.toLowerCase().includes('pillar') || 
+                    cluster.page_type.toLowerCase().includes('main')) {
+                    row.classList.add('pillar-page');
+                } else if (cluster.page_type.toLowerCase().includes('sub')) {
+                    row.classList.add('sub-page');
+                }
+            }
+            
+            // Difficulty color coding
+            const difficultyClass = this.getDifficultyClass(cluster.avg_difficulty);
+            
+            // Truncate intent for display
+            const displayIntent = this.truncateText(cluster.intent, 40);
+            const displayTopics = this.truncateText(cluster.topics, 50);
+            
             row.innerHTML = `
                 <td class="cluster-name">${this.escapeHtml(cluster.cluster_name)}</td>
                 <td class="keywords-count">${cluster.keyword_count}</td>
                 <td class="volume">${cluster.total_volume.toLocaleString()}</td>
-                <td class="difficulty">${cluster.avg_difficulty}</td>
-                <td class="topics">${this.escapeHtml(cluster.topics)}</td>
-                <td class="intent">${this.escapeHtml(cluster.intent)}</td>
+                <td class="difficulty ${difficultyClass}">${Math.round(cluster.avg_difficulty)}</td>
+                <td class="topics truncate" title="${this.escapeHtml(cluster.topics)}">${this.escapeHtml(displayTopics)}</td>
+                <td class="intent truncate" title="${this.escapeHtml(cluster.intent)}">${this.escapeHtml(displayIntent)}</td>
                 <td class="actions">
-                    <button class="action-btn copy-btn" onclick="keywordProcessor.copyClusterData(${startIndex + index})" title="Copy cluster data">
-                        📋 Copy
+                    <button class="action-btn detail-btn" onclick="keywordProcessor.showClusterDetail(${startIndex + index})" title="View & edit details">
+                        📋 Detail
+                    </button>
+                    <button class="action-btn delete-btn" onclick="keywordProcessor.deleteClusterConfirm(${startIndex + index})" title="Delete cluster">
+                        ✕
                     </button>
                 </td>
             `;
@@ -691,6 +804,23 @@ class KeywordProcessor {
 
         // Update pagination
         this.updatePagination(totalItems);
+    }
+
+    /**
+     * Get difficulty class for color coding
+     */
+    getDifficultyClass(difficulty) {
+        if (difficulty <= 30) return 'difficulty-easy';
+        if (difficulty <= 60) return 'difficulty-medium';
+        return 'difficulty-hard';
+    }
+
+    /**
+     * Truncate text for display
+     */
+    truncateText(text, maxLength) {
+        if (!text || text.length <= maxLength) return text;
+        return text.substring(0, maxLength) + '...';
     }
 
     /**
@@ -718,12 +848,166 @@ class KeywordProcessor {
     }
 
     /**
-     * Copy cluster data to clipboard
+     * Show cluster detail modal
      */
-    copyClusterData(clusterIndex) {
+    showClusterDetail(clusterIndex) {
+        if (!this.processedData || !this.processedData.clusters[clusterIndex]) return;
+
+        this.editingClusterIndex = clusterIndex;
+        const cluster = this.processedData.clusters[clusterIndex];
+        
+        // Populate modal fields
+        const fields = {
+            'editClusterName': cluster.cluster_name,
+            'editKeywordCount': cluster.keyword_count,
+            'editTotalVolume': cluster.total_volume,
+            'editAvgDifficulty': cluster.avg_difficulty,
+            'editDifficultyRange': cluster.min_max_difficulty,
+            'editAvgCPC': cluster.avg_cpc,
+            'editSupportingKeywords': cluster.supporting_keywords,
+            'editTopics': cluster.topics,
+            'editIntent': cluster.intent,
+            'editSeedKeywords': cluster.seed_keywords
+        };
+
+        Object.entries(fields).forEach(([id, value]) => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.value = value || '';
+            }
+        });
+
+        // Show modal
+        const modal = document.getElementById('detailModal');
+        if (modal) {
+            modal.style.display = 'flex';
+        }
+    }
+
+    /**
+     * Close detail modal
+     */
+    closeDetailModal() {
+        const modal = document.getElementById('detailModal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+        this.editingClusterIndex = -1;
+    }
+
+    /**
+     * Save cluster changes
+     */
+    saveClusterChanges() {
+        if (this.editingClusterIndex === -1 || !this.processedData) return;
+
+        const cluster = this.processedData.clusters[this.editingClusterIndex];
+        
+        // Update cluster with new values
+        cluster.cluster_name = document.getElementById('editClusterName')?.value || cluster.cluster_name;
+        cluster.keyword_count = parseInt(document.getElementById('editKeywordCount')?.value) || cluster.keyword_count;
+        cluster.total_volume = parseInt(document.getElementById('editTotalVolume')?.value) || cluster.total_volume;
+        cluster.avg_difficulty = parseFloat(document.getElementById('editAvgDifficulty')?.value) || cluster.avg_difficulty;
+        cluster.min_max_difficulty = document.getElementById('editDifficultyRange')?.value || cluster.min_max_difficulty;
+        cluster.avg_cpc = parseFloat(document.getElementById('editAvgCPC')?.value) || cluster.avg_cpc;
+        cluster.supporting_keywords = document.getElementById('editSupportingKeywords')?.value || cluster.supporting_keywords;
+        cluster.topics = document.getElementById('editTopics')?.value || cluster.topics;
+        cluster.intent = document.getElementById('editIntent')?.value || cluster.intent;
+        cluster.seed_keywords = document.getElementById('editSeedKeywords')?.value || cluster.seed_keywords;
+
+        // Update metadata
+        this.updateMetadata();
+        
+        // Re-render table and stats
+        this.updateStats(this.processedData.metadata);
+        this.renderDataTable();
+        
+        this.closeDetailModal();
+        this.showAlert('✅ Cluster updated successfully!', 'success');
+    }
+
+    /**
+     * Delete cluster with confirmation
+     */
+    deleteClusterConfirm(clusterIndex) {
         if (!this.processedData || !this.processedData.clusters[clusterIndex]) return;
 
         const cluster = this.processedData.clusters[clusterIndex];
+        if (confirm(`Are you sure you want to delete cluster "${cluster.cluster_name}"?`)) {
+            this.deleteClusterByIndex(clusterIndex);
+        }
+    }
+
+    /**
+     * Delete cluster by index
+     */
+    deleteClusterByIndex(clusterIndex) {
+        if (!this.processedData || !this.processedData.clusters[clusterIndex]) return;
+
+        // Remove cluster
+        this.processedData.clusters.splice(clusterIndex, 1);
+        
+        // Update metadata
+        this.updateMetadata();
+        
+        // Re-render
+        this.updateStats(this.processedData.metadata);
+        this.renderDataTable();
+        
+        this.showAlert('✅ Cluster deleted successfully!', 'success');
+    }
+
+    /**
+     * Delete cluster from detail modal
+     */
+    deleteCluster() {
+        if (this.editingClusterIndex === -1) return;
+        
+        const cluster = this.processedData.clusters[this.editingClusterIndex];
+        if (confirm(`Are you sure you want to delete cluster "${cluster.cluster_name}"?`)) {
+            this.deleteClusterByIndex(this.editingClusterIndex);
+            this.closeDetailModal();
+        }
+    }
+
+    /**
+     * Update metadata after cluster changes
+     */
+    updateMetadata() {
+        if (!this.processedData) return;
+
+        const clusters = this.processedData.clusters;
+        const totalKeywords = clusters.reduce((sum, cluster) => sum + cluster.keyword_count, 0);
+        const totalVolume = clusters.reduce((sum, cluster) => sum + cluster.total_volume, 0);
+        const avgDifficulty = clusters.length > 0 
+            ? Math.round((clusters.reduce((sum, cluster) => sum + cluster.avg_difficulty, 0) / clusters.length) * 10) / 10
+            : 0;
+        
+        const pillarPages = clusters.filter(c => 
+            c.page_type && (
+                c.page_type.toLowerCase().includes('pillar') || 
+                c.page_type.toLowerCase().includes('main')
+            )
+        ).length;
+        
+        const subPages = clusters.length - pillarPages;
+
+        // Update metadata
+        this.processedData.metadata.total_clusters = clusters.length;
+        this.processedData.metadata.total_keywords = totalKeywords;
+        this.processedData.metadata.total_volume = totalVolume;
+        this.processedData.metadata.avg_difficulty = avgDifficulty;
+        this.processedData.metadata.pillar_pages = pillarPages;
+        this.processedData.metadata.sub_pages = subPages;
+    }
+
+    /**
+     * Copy cluster data to clipboard
+     */
+    copyClusterToClipboard() {
+        if (this.editingClusterIndex === -1 || !this.processedData) return;
+
+        const cluster = this.processedData.clusters[this.editingClusterIndex];
         const copyText = `Cluster: ${cluster.cluster_name}
 Keywords: ${cluster.keyword_count}
 Supporting Keywords: ${cluster.supporting_keywords}
@@ -735,8 +1019,13 @@ Intent: ${cluster.intent}
 Average CPC: $${cluster.avg_cpc}
 Seed Keywords: ${cluster.seed_keywords}`;
 
-        // Show in modal
-        this.showCopyModal(copyText);
+        // Copy to clipboard
+        navigator.clipboard.writeText(copyText).then(() => {
+            this.showAlert('✅ Cluster data copied to clipboard!', 'success');
+        }).catch(() => {
+            // Fallback - show in copy modal
+            this.showCopyModal(copyText);
+        });
     }
 
     /**
@@ -763,7 +1052,7 @@ Seed Keywords: ${cluster.seed_keywords}`;
     }
 
     /**
-     * Copy text to clipboard
+     * Copy text to clipboard from modal
      */
     async copyToClipboard() {
         const textarea = document.getElementById('copyTextArea');
@@ -834,6 +1123,61 @@ Seed Keywords: ${cluster.seed_keywords}`;
     }
 
     /**
+     * Export to CSV
+     */
+    exportToCSV() {
+        if (!this.processedData) return;
+
+        const clusters = this.processedData.clusters;
+        const csvHeaders = [
+            'Cluster Name',
+            'Page Type', 
+            'Keyword Count',
+            'Supporting Keywords',
+            'Total Volume',
+            'Average Difficulty',
+            'Difficulty Range',
+            'Topics',
+            'Intent',
+            'Average CPC',
+            'Seed Keywords'
+        ];
+
+        const csvData = clusters.map(cluster => [
+            cluster.cluster_name,
+            cluster.page_type || '',
+            cluster.keyword_count,
+            cluster.supporting_keywords,
+            cluster.total_volume,
+            cluster.avg_difficulty,
+            cluster.min_max_difficulty,
+            cluster.topics,
+            cluster.intent,
+            cluster.avg_cpc,
+            cluster.seed_keywords
+        ]);
+
+        csvData.unshift(csvHeaders);
+        
+        const csvContent = csvData.map(row => 
+            row.map(field => `"${String(field || '').replace(/"/g, '""')}"`).join(',')
+        ).join('\n');
+
+        const dataBlob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(dataBlob);
+        
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${this.processedData.metadata.seed_keyword}_clusters_${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        this.showAlert('✅ CSV exported successfully!', 'success');
+    }
+
+    /**
      * Show/hide settings panel
      */
     toggleSettings() {
@@ -885,25 +1229,174 @@ Seed Keywords: ${cluster.seed_keywords}`;
     }
 
     /**
-     * Show projects (placeholder for future PHP implementation)
+     * Show projects section
      */
-    showProjects() {
+    async showProjects() {
         const projectsSection = document.getElementById('projectsSection');
         if (projectsSection) {
             projectsSection.style.display = 'block';
             projectsSection.scrollIntoView({ behavior: 'smooth' });
         }
         
-        // This would load projects from database in PHP implementation
-        this.showAlert('📁 Projects feature will be available when PHP backend is implemented.', 'info');
+        await this.loadProjects();
     }
 
     /**
-     * Refresh projects list
+     * Load projects from database
+     */
+    async loadProjects() {
+        try {
+            const response = await fetch(`api/endpoints/get-projects.php?page=${this.currentProjectPage}&limit=${this.projectsPerPage}&search=${encodeURIComponent(this.currentProjectSearch)}`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                this.renderProjects(result.data.projects, result.data.pagination);
+            } else {
+                throw new Error(result.error || 'Unknown error');
+            }
+            
+        } catch (error) {
+            console.error('Load projects error:', error);
+            this.showAlert('⚠️ Could not load projects. Please check if PHP backend is properly configured.', 'warning');
+            
+            // Show placeholder message
+            const projectsGrid = document.getElementById('projectsGrid');
+            if (projectsGrid) {
+                projectsGrid.innerHTML = `
+                    <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #64748b;">
+                        <div style="font-size: 3rem; margin-bottom: 20px;">📁</div>
+                        <h3>No Projects Found</h3>
+                        <p>Either no projects exist or the PHP backend needs to be configured.</p>
+                        <button class="btn btn-primary" onclick="keywordProcessor.processKeywords()" style="margin-top: 20px;">
+                            Process Your First Dataset
+                        </button>
+                    </div>
+                `;
+            }
+        }
+    }
+
+    /**
+     * Render projects grid
+     */
+    renderProjects(projects, pagination) {
+        const projectsGrid = document.getElementById('projectsGrid');
+        if (!projectsGrid) return;
+
+        if (!projects || projects.length === 0) {
+            projectsGrid.innerHTML = `
+                <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #64748b;">
+                    <div style="font-size: 3rem; margin-bottom: 20px;">📁</div>
+                    <h3>No Projects Found</h3>
+                    <p>Start by processing your first keyword dataset.</p>
+                    <button class="btn btn-primary" onclick="keywordProcessor.processKeywords()" style="margin-top: 20px;">
+                        Process Your First Dataset
+                    </button>
+                </div>
+            `;
+            return;
+        }
+
+        projectsGrid.innerHTML = projects.map(project => `
+            <div class="project-card" onclick="keywordProcessor.showProjectDetail(${project.id})">
+                <h3>${this.escapeHtml(project.seed_keyword)}</h3>
+                <div class="project-meta">
+                    <div><strong>Clusters:</strong> ${project.total_clusters}</div>
+                    <div><strong>Keywords:</strong> ${project.total_keywords.toLocaleString()}</div>
+                    <div><strong>Volume:</strong> ${project.total_volume.toLocaleString()}</div>
+                    <div><strong>Difficulty:</strong> ${project.avg_difficulty}</div>
+                    <div><strong>Created:</strong> ${new Date(project.created_at).toLocaleDateString()}</div>
+                    <div><strong>Status:</strong> <span style="color: ${project.status === 'completed' ? '#059669' : '#d97706'};">${project.status}</span></div>
+                </div>
+                <div class="project-actions">
+                    <button class="btn btn-outline" onclick="event.stopPropagation(); keywordProcessor.loadProjectData(${project.id})">📊 Load</button>
+                    <button class="btn btn-outline" onclick="event.stopPropagation(); keywordProcessor.exportProjectData(${project.id})">📤 Export</button>
+                </div>
+            </div>
+        `).join('');
+
+        // Update pagination
+        this.updateProjectPagination(pagination);
+    }
+
+    /**
+     * Update project pagination
+     */
+    updateProjectPagination(pagination) {
+        const paginationContainer = document.getElementById('projectsPagination');
+        const pageInfo = document.getElementById('projectPageInfo');
+
+        if (pagination.total_pages > 1) {
+            if (pageInfo) {
+                pageInfo.textContent = `Page ${pagination.current_page} of ${pagination.total_pages}`;
+            }
+            
+            if (paginationContainer) {
+                paginationContainer.style.display = 'flex';
+            }
+        } else {
+            if (paginationContainer) {
+                paginationContainer.style.display = 'none';
+            }
+        }
+    }
+
+    /**
+     * Search projects
+     */
+    searchProjects() {
+        const searchInput = document.getElementById('projectSearch');
+        if (searchInput) {
+            this.currentProjectSearch = searchInput.value.trim();
+            this.currentProjectPage = 1;
+            this.loadProjects();
+        }
+    }
+
+    /**
+     * Change project page
+     */
+    changeProjectPage(direction) {
+        this.currentProjectPage += direction;
+        if (this.currentProjectPage < 1) this.currentProjectPage = 1;
+        this.loadProjects();
+    }
+
+    /**
+     * Refresh projects
      */
     refreshProjects() {
-        // Placeholder for PHP implementation
-        this.showAlert('🔄 Projects refresh will be available when PHP backend is implemented.', 'info');
+        this.currentProjectPage = 1;
+        this.currentProjectSearch = '';
+        const searchInput = document.getElementById('projectSearch');
+        if (searchInput) searchInput.value = '';
+        this.loadProjects();
+    }
+
+    /**
+     * Show project detail modal (placeholder)
+     */
+    showProjectDetail(projectId) {
+        this.showAlert(`📁 Project detail view (ID: ${projectId}) will be implemented when full project management is added.`, 'info');
+    }
+
+    /**
+     * Load project data (placeholder)
+     */
+    loadProjectData(projectId) {
+        this.showAlert(`📊 Loading project data (ID: ${projectId}) will be implemented when full project management is added.`, 'info');
+    }
+
+    /**
+     * Export project data (placeholder)
+     */
+    exportProjectData(projectId) {
+        this.showAlert(`📤 Exporting project data (ID: ${projectId}) will be implemented when full project management is added.`, 'info');
     }
 
     /**
@@ -961,8 +1454,16 @@ function saveSettings() {
     keywordProcessor.saveSettings();
 }
 
-function processFile() {
-    keywordProcessor.processFile();
+function processKeywords() {
+    keywordProcessor.processKeywords();
+}
+
+function saveProject() {
+    keywordProcessor.saveProject();
+}
+
+function sendWebhook() {
+    keywordProcessor.sendWebhook();
 }
 
 function togglePreviewMode() {
@@ -977,6 +1478,10 @@ function exportToJSON() {
     keywordProcessor.exportToJSON();
 }
 
+function exportToCSV() {
+    keywordProcessor.exportToCSV();
+}
+
 function showProjects() {
     keywordProcessor.showProjects();
 }
@@ -985,12 +1490,52 @@ function refreshProjects() {
     keywordProcessor.refreshProjects();
 }
 
+function searchProjects() {
+    keywordProcessor.searchProjects();
+}
+
+function changeProjectPage(direction) {
+    keywordProcessor.changeProjectPage(direction);
+}
+
+function closeDetailModal() {
+    keywordProcessor.closeDetailModal();
+}
+
+function saveClusterChanges() {
+    keywordProcessor.saveClusterChanges();
+}
+
+function deleteCluster() {
+    keywordProcessor.deleteCluster();
+}
+
+function copyClusterToClipboard() {
+    keywordProcessor.copyClusterToClipboard();
+}
+
 function closeCopyModal() {
     keywordProcessor.closeCopyModal();
 }
 
 function copyToClipboard() {
     keywordProcessor.copyToClipboard();
+}
+
+function closeProjectDetailModal() {
+    // Placeholder for project detail modal
+}
+
+function loadProjectData() {
+    // Placeholder for loading project data
+}
+
+function exportProjectData() {
+    // Placeholder for exporting project data
+}
+
+function deleteProject() {
+    // Placeholder for deleting project
 }
 
 // Initialize application when DOM is loaded
